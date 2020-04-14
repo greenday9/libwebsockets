@@ -296,6 +296,35 @@ static const lws_struct_map_t lsm_schema_map[] = {
 			 lsm_other,		"com-warmcat-sai-other"),
 };
 
+typedef struct sai_cancel {
+	char task_uuid[65];
+} sai_cancel_t;
+
+const lws_struct_map_t lsm_task_cancel[] = {
+	LSM_CARRAY	(sai_cancel_t, task_uuid,	 "uuid"),
+};
+
+static const lws_struct_map_t t2_map[] = {
+	LSM_SCHEMA	(sai_cancel_t, NULL, lsm_task_cancel,
+					      "com.warmcat.sai.taskinfo"),
+	LSM_SCHEMA	(sai_cancel_t, NULL, lsm_task_cancel,
+					      "com.warmcat.sai.eventinfo"),
+	LSM_SCHEMA	(sai_cancel_t, NULL, lsm_task_cancel,
+			/* shares struct */   "com.warmcat.sai.taskreset"),
+	LSM_SCHEMA	(sai_cancel_t, NULL, lsm_task_cancel,
+			/* shares struct */   "com.warmcat.sai.eventreset"),
+	LSM_SCHEMA	(sai_cancel_t, NULL, lsm_task_cancel,
+			/* shares struct */   "com.warmcat.sai.eventdelete"),
+	LSM_SCHEMA	(sai_cancel_t,		 NULL, lsm_task_cancel,
+					      "com.warmcat.sai.taskcan"),
+};
+
+static const char *t2 =
+	"{\"schema\":\"com.warmcat.sai.taskcan\","
+	 "\"uuid\": \"071ab46ab4296e5de674c628fec17c55088254679f7714ad991f8c4873dca\"}\x01\x02\xff\xff\xff\xff";
+
+
+
 static int
 show_target(struct lws_dll2 *d, void *user)
 {
@@ -482,6 +511,23 @@ done:
 
 	lws_struct_json_serialize_destroy(&ser);
 
+	lwsl_notice("Test set 2\n");
+
+	memset(&a, 0, sizeof(a));
+	a.map_st[0] = t2_map;
+	a.map_entries_st[0] = LWS_ARRAY_SIZE(t2_map);
+	a.ac_block_size = 128;
+
+	lws_struct_json_init_parse(&ctx, NULL, &a);
+	m = (int)(signed char)lejp_parse(&ctx, (uint8_t *)t2, strlen(t2));
+	if (m < 0 || !a.dest) {
+		lwsl_notice("%s: notification JSON decode failed '%s'\n",
+				__func__, lejp_error_to_string(m));
+		goto bail;
+	}
+
+	lwsl_notice("Test set 2: %d: %s\n", m,
+			((sai_cancel_t *)a.dest)->task_uuid);
 
 	lwsl_user("Completed: PASS\n");
 
